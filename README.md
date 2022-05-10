@@ -25,12 +25,17 @@ http://hgdownload.soe.ucsc.edu/goldenPath/hg38/multiz30way/alignments/
 
 * ```conda install -c conda-forge biopython```
 
+4. mafft
+* ```conda install -c bioconda mafft```
+
 ### Steps:
 1. Create a .txt with list of orgs to filter (see examples/orgFilter.txt)
 2. Filter for desired orgs (Example using just primates):
-* ```python faFilter.py 'examples/orgFilter.txt' knownCanonical.protAA.fa primate_knownCanonical.protAA.fa```
-3. MSA using only a subset of the primates to start (expand later if promising)
+* ```python faFilter.py -bl 'examples/orgFilter.txt' -i knownCanonical.protAA.fa -o primate_knownCanonical.protAA.fa```
+3. faSplit 
+3. Optional: MSA using only a subset of the primates to start (expand later if promising)
     * Expect gaps after subsetting primates, purge all shared gaps
+    * ```linsi 
 4. Use motif to search against only the human version
 5. Map indices to MSA
 6. Collect +/- 4 (8mer slices) from cleavage site across every sequence
