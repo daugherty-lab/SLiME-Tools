@@ -5,6 +5,24 @@ Short Linear Motif Evolution Tools
 ## Stage: Post-motif generation
 
 ### Pre-reqs:
+1. Python3 set up in conda
+
+2. MEME Suite
+* Option 1 if your Python3 version allows: ```conda install -c bioconda meme=```
+* Option 2 if your Python3 is incompatible:
+    * ```wget https://meme-suite.org/meme/meme-software/4.11.2/meme_4.11.2_2.tar.gz```
+    * ```tar xzf meme_4.11.2_2.tar.gz```
+    * ```cd meme_4.11.2```
+    * ```./configure --prefix=$HOME/apps/meme4.11.2_2 --with-url=http://meme-suite.org --enable-build-libxml2 --enable-build-libxslt```
+    * ```make```
+    * ```make test``` # We only care about MEME and FIMO
+    * ```make install```
+    * ```export PATH=$HOME/apps/meme4.11.2_2/bin:$PATH```
+
+3. mafft
+* ```conda install -c bioconda mafft```
+
+(Optional) If you need to obtain your own set of protein alignments, see below:
 1. One of the following sets of protein alignments (knownCanonical.protAA.fa.gz):
 
 * Option 1:
@@ -24,9 +42,6 @@ http://hgdownload.soe.ucsc.edu/goldenPath/hg38/multiz30way/alignments/
 3. Biopython
 
 * ```conda install -c conda-forge biopython```
-
-4. mafft
-* ```conda install -c bioconda mafft```
 
 ### Steps:
 1. Create a .txt with list of orgs to filter (see examples/orgFilter.txt)
