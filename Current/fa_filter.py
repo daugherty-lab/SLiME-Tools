@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 import argparse
-import sys
 from Bio import SeqIO
 
 def parse_args():
-    parser = argparse.ArgumentParser(prog='PROG', conflict_handler='resolve')
+    parser = argparse.ArgumentParser(prog='fa_filter.py', conflict_handler='resolve')
     parser.add_argument('-bl', type = str, required = True, help = '=> .txt with organism blacklist e.g. mm10')
     parser.add_argument('-i', type = str, required = True, help = '=> original .fasta input')
     parser.add_argument('-o', type = str, required = True, help = '=> desired name for filtered .fasta output')
@@ -21,15 +20,15 @@ def list_ids(txtfile: str) -> set():
     with open(txtfile, 'r') as fi:
         for line in fi:
             line = line.strip()
-            identifiers.add(str(line).replace(">", "")) #record.id excludes ">"
+            identifiers.add(str(line).replace('>', '')) #record.id excludes ">"
 
     return(identifiers)
 
 def get_orgname(recIDstr: str) -> str:
     """
-    Splits a faster header by \s and "_" to return orgname
+    Splits a faster header by \s and '_' to return orgname
     """
-    orgname = recIDstr.split()[0].split("_")[1]
+    orgname = recIDstr.split()[0].split('_')[1]
     return(orgname)
 
 def main():
