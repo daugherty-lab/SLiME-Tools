@@ -3,8 +3,6 @@ import argparse
 import glob
 import pandas as pd
 
-from Bio.SeqIO.FastaIO import SimpleFastaParser
-
 def parse_args():
     parser = argparse.ArgumentParser(prog = 'concat-hitsum.py', conflict_handler = 'resolve')
     # parser.add_argument('-bl', type = str, required = True, help = '=> .txt with organism blacklist e.g. mm10')
@@ -18,10 +16,11 @@ def glob_files(path: str) -> list():
     return(glob.glob(f'{path}/*.tsv'))
 
 def extract_maln(aln_dir: str, query_seqID: str, seq_sites: list()) -> list():
+    from Bio.SeqIO.FastaIO import SimpleFastaParser
     with open(f'{aln_dir}/{query_seqID}.12taxa.fa') as aln_file:
         species_regions = []
         for title, sequence in SimpleFastaParser(aln_file):
-            species_regions.append([f'{title.split("_")[-1]}: {sequence[position-1:position+7]}' for position in seq_sites])
+            species_regions.append([f'{title.split("_")[-1]}: {sequence[pos-1:pos+7]}' for pos in seq_sites])
     return(list(map(list, zip(*species_regions))))
 
 def exclude_hits(hits_to_exclude: list(), all_hits: list()) -> list():
@@ -51,6 +50,10 @@ def human_hit(series) -> str:
 
 def main():
     """
+    Takes fimo files and aln files (optional) and generates
+    summary dataframe containing one motif hit per line
+    with the following info: 
+    seq ID|AA pos|species hit: seq|min pval|hg38? (yes/no)|hg38 site|hg38 pval|species absent
     """
     args = parse_args()
 
@@ -68,7 +71,8 @@ def main():
     for ind, file in enumerate(infimo_files):
 
         #Create dataframe with selected data from fimo file
-        tsv_data = pd.read_csv(file, sep = '\t', usecols = infile_ind, names = ['seqname', 'start', 'pvalue', 'matchedseq'])
+        tsv_data = pd.read_csv(file, sep = '\t', usecols = infile_ind, 
+                                names = ['seqname', 'start', 'pvalue', 'matchedseq'])
         tsv_data[['seqIDs', 'species']] = tsv_data.seqname.str.split('.12taxa.fa_', expand=True)
         tsv_data['species_seqs'] = tsv_data['species'].astype(str) + ': ' + tsv_data['matchedseq']
 
@@ -84,7 +88,7 @@ def main():
         #merge tsv_data to retained hg38 data and export
         merged_data = pd.merge(tsv_data, hg_data[['start', 'matchedseq', 'pvalue']],on='start', how='left')
 
-        #OPTIONAL: use seqID, start pt, and list of species hits to scrape sequences of orgs with no detectable motif
+        #OPTIONAL: use seqID, start pt, and species hits to scrape sequences of orgs with no detectable motif
         if args.alndir:
             #collect species-relevant motif info
             aln_directory = args.alndir.rstrip('/')
