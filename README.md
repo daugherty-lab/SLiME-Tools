@@ -65,9 +65,8 @@ http://hgdownload.soe.ucsc.edu/goldenPath/hg38/multiz30way/alignments/
 
 5. Collapse each fimo.tsv into one line per hit (e.g. a seq w/ 13 unique sites across the primate aln has 13 lines)
 ```python concat-hitsum.py -fimodir [path/to/fimo_tsv_directory] -o [path/to/desired_output_csv_file]```
---In testing--
 * OPTIONAL: Get motif sequences associated w/ nonhit species
     * Specify alignment directory with -alndir flag
 
-
+--In testing--
 6. Merge Merge Merge all the data
