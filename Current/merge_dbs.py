@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import glob
-import logging
+# import logging
 import pandas as pd
 
 # set logging
@@ -10,8 +10,9 @@ import pandas as pd
 
 # formatter = logging.Formatter('[%(asctime)s:%(levelname)s:%(lineno)d %(message)s', datefmt='%H:%M:%S') #time:levelname:message:line#
 
-# file_handler = logging.FileHandler('log/merge_db-error.log')
-# file_handler.setLevel(logging.ERROR)
+# file_handler = logging.FileHandler('log/merge_db.log')
+# # file_handler = logging.FileHandler('log/merge_db-error.log')
+# # file_handler.setLevel(logging.ERROR)
 # file_handler.setFormatter(formatter)
 
 # stream_handler = logging.StreamHandler()
@@ -42,19 +43,28 @@ def main():
     
     for ind, file in enumerate(db_files):
 
-        # Check to ensure seqID column is always FIRST (Make function for this later)
-        # Check to ensure seqID formatting 'NM_number' is the same across both
-
         # Create dataframe with selected data from each compatible db files in loop
         db = pd.read_csv(file)
-        seqID, *othercols = db.columns
+        cols = list(db)
+        col_intersect = list(in_csv.columns.intersection(db.columns)) # get key col, assume one
+
+        # If shared key col exists, unpack to unique var, else skip/report file error
+        if col_intersect:
+            cols.insert(0, cols.pop(cols.index(col_intersect[0]))) # move intersected key col to the front
+            db = db.loc[:, cols]
+            seqID, *othercols = db.columns
+            print(f"{file.split('/')[-1]}: joined at {seqID}")
+        else:
+            print(f"{file.split('/')[-1]}: Missing shared key column")
+            continue
+        
 
         # Merge new db dataframe to existing csv
         in_csv = pd.merge(in_csv, db[[seqID, *othercols]],on=seqID, how='left')
 
         # Create csv file if list of db files is done
         if ind == db_endpoint:
-            # logger.debug(in_csv.columns)
+            
             in_csv.to_csv(args.o, index = False, mode = 'w', header=True)
 
 if __name__ == '__main__':
