@@ -9,7 +9,7 @@ def parse_args():
     parser.add_argument('-o', type = str, required = True, help = '=> desired name for filtered .fasta output')
     return(parser.parse_args())
 
-def list_ids(txtfile: str) -> set():
+def list_ids(txtfile: str) -> set[str]:
     """
     Return a set containing the identifiers presented in a file,
     line by line, starting with ">"

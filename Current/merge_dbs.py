@@ -28,8 +28,33 @@ def parse_args():
     parser.add_argument('-o', type = str, required = True, help = '=> path/to/outfile.csv')
     return(parser.parse_args())
 
-def glob_files(path: str) -> list():
+def glob_files(path: str) -> list[str]:
     return(glob.glob(f'{path}/*'))
+
+def merge_dfs(in_df: pd.DataFrame, glob_files: list[str]) -> tuple[pd.DataFrame, list[str]]:
+    leftovers = []
+    for file in glob_files:
+        # Create dataframe with selected data from each compatible db files in loop
+        filename = file.split('/')[-1]
+        db = pd.read_csv(file)
+        cols = list(db)
+        col_intersect = list(in_df.columns.intersection(db.columns)) # get key col, assume one
+
+        # If shared key col exists, unpack to unique var, else skip/report file error
+        if col_intersect:
+            cols.insert(0, cols.pop(cols.index(col_intersect[0]))) # move intersected key col to the front
+            db = db.loc[:, cols]
+            sharedID, *othercols = db.columns
+            print(f'{filename}: joined at {sharedID}')
+        else:
+            print(f'{filename}: Missing shared key column')
+            leftovers.append(file)
+            continue
+        # Merge cleaned up dfs
+        db.drop_duplicates(subset=sharedID, keep='first', inplace=True)
+        in_df = pd.merge(in_df, db[[sharedID, *othercols]],on=sharedID, how='left')
+    return(in_df, leftovers)
+
 
 def main():
     """
@@ -39,33 +64,19 @@ def main():
     # Set files and columns to extract from
     in_csv = pd.read_csv(args.i)
     db_files = glob_files(args.db_dir.rstrip('/'))
-    db_endpoint = len(db_files)-1
+
+    # Merge each db_file to in_csv by shared key col, record unmerged files
+    in_csv, db_leftovers = merge_dfs(in_csv, db_files)
     
-    for ind, file in enumerate(db_files):
-
-        # Create dataframe with selected data from each compatible db files in loop
-        db = pd.read_csv(file)
-        cols = list(db)
-        col_intersect = list(in_csv.columns.intersection(db.columns)) # get key col, assume one
-
-        # If shared key col exists, unpack to unique var, else skip/report file error
-        if col_intersect:
-            cols.insert(0, cols.pop(cols.index(col_intersect[0]))) # move intersected key col to the front
-            db = db.loc[:, cols]
-            seqID, *othercols = db.columns
-            print(f"{file.split('/')[-1]}: joined at {seqID}")
-        else:
-            print(f"{file.split('/')[-1]}: Missing shared key column")
-            continue
-        
-
-        # Merge new db dataframe to existing csv
-        in_csv = pd.merge(in_csv, db[[seqID, *othercols]],on=seqID, how='left')
-
-        # Create csv file if list of db files is done
-        if ind == db_endpoint:
-            
-            in_csv.to_csv(args.o, index = False, mode = 'w', header=True)
+    # Retry with unmerged files, if applicable, then export .csv
+    if db_leftovers:
+        in_csv, remaining_leftovers = merge_dfs(in_csv, db_leftovers)
+        in_csv.to_csv(args.o, index = False, mode = 'w', header=True)
+        if remaining_leftovers:
+            remaining_filenames = [file.split('/')[-1] for file in remaining_leftovers]
+            print(f'Remaining un-merged files: {remaining_filenames}')
+    else:
+        in_csv.to_csv(args.o, index = False, mode = 'w', header=True)
 
 if __name__ == '__main__':
     main()

@@ -12,10 +12,10 @@ def parse_args():
     parser.add_argument('-o', type = str, required = True, help = '=> path/to/outfile.csv')
     return(parser.parse_args())
 
-def glob_files(path: str) -> list():
+def glob_files(path: str) -> list[str]:
     return(glob.glob(f'{path}/*.tsv'))
 
-def extract_maln(aln_dir: str, query_seqID: str, seq_sites: list()) -> list():
+def extract_maln(aln_dir: str, query_seqID: str, seq_sites: list[int]) -> list[str]:
     from Bio.SeqIO.FastaIO import SimpleFastaParser
     with open(f'{aln_dir}/{query_seqID}.12taxa.fa') as aln_file:
         species_regions = []
@@ -23,26 +23,26 @@ def extract_maln(aln_dir: str, query_seqID: str, seq_sites: list()) -> list():
             species_regions.append([f'{title.split("_")[-1]}: {sequence[pos-1:pos+7]}' for pos in seq_sites])
     return(list(map(list, zip(*species_regions))))
 
-def exclude_hits(hits_to_exclude: list(), all_hits: list()) -> list():
+def exclude_hits(hits_to_exclude: list[str], all_hits: list[str]) -> list[str]:
     nonhit_regions = []
     for hit_index, species in enumerate(hits_to_exclude):
         nonhit_regions.append(set(all_hits[hit_index]).symmetric_difference(species))
     return(nonhit_regions)
 
 # pandas agg func rename
-def sequenceID(series) -> str:
+def sequenceID(series: pd.Series) -> str:
     return(series[0:1])
 
-def start(series) -> int:
+def start(series: pd.Series) -> int:
     return(series[0:1])
 
-def concat_sites(series) -> tuple():
+def concat_sites(series: pd.Series) -> tuple[str]:
     return(tuple(series))
 
-def pval_min(series) -> float:
+def pval_min(series: pd.Series) -> float:
     return(min(series))
 
-def human_hit(series) -> str:
+def human_hit(series: pd.Series) -> str:
     if series.str.contains('hg38').any():
         return('Yes')
     else:
