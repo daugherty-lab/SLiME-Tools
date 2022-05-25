@@ -1,3 +1,6 @@
+# logging folders
+log/
+
 # extended fimo file types
 fimo.gff
 fimo.html
