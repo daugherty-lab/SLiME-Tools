@@ -68,11 +68,14 @@ http://hgdownload.soe.ucsc.edu/goldenPath/hg38/multiz30way/alignments/
 * OPTIONAL: Get motif sequences associated w/ nonhit species
     * Specify alignment directory with -alndir flag
 
---In testing--
 6. Merge desired database (db) .csv files
-```python merge_dbs.py -i [path/to/concat-hitsum-output.csv] -db_dir [path/to/db_directory] -o [path/to/desired_merged_output.csv]```
+```python merge_dbs.py -i [path/to/main_db.csv] -db_dir [path/to/db_directory] -o [path/to/desired_merged_output.csv]```
 * Current version: the database file(s) must have exactly ONE matching/shared key column
     * Shared key column is auto-detected (either between input.csv and db.csv OR db.csv and another db.csv)
     * For our purposes, this key column is usually 'sequenceID' or 'gene_sym'
 * Future versions: >1 matching/shared key columns are tolerated, if specified
 * Record merge settings for each database file in a separate text file to be handled in a pipeline
+
+--In testing--
+7: Merge database file using a config file
+* Config file (.ini) contains filepath, column to join, and specific columns to add
