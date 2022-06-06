@@ -1,7 +1,25 @@
 #!/usr/bin/env python3
 import argparse
 import glob
+# import logging
 import pandas as pd
+
+# set logging
+# logger=logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
+
+# formatter=logging.Formatter('[%(asctime)s:%(levelname)s:%(lineno)d %(message)s', datefmt='%H:%M:%S') #time:levelname:message:line#
+
+# file_handler=logging.FileHandler('log/concat-hitsum.log')
+# # file_handler=logging.FileHandler('log/merge_db-error.log')
+# # file_handler.setLevel(logging.ERROR)
+# file_handler.setFormatter(formatter)
+
+# stream_handler=logging.StreamHandler()
+# stream_handler.setFormatter(formatter)
+
+# logger.addHandler(file_handler)
+# logger.addHandler(stream_handler)
 
 def parse_args():
     parser = argparse.ArgumentParser(prog = 'concat-hitsum.py', conflict_handler = 'resolve')
@@ -9,19 +27,52 @@ def parse_args():
     parser.add_argument('-fimodir', type = str, required = True, help = '=> path/to/fimo_directory')
     parser.add_argument('-alndir', type = str, required = False, 
                         help = '=> path/to/alignments_directory. ONLY if you want to list orgs w/o motif hits')
+    parser.add_argument('-PSGdir', type = str, required = False, 
+                        help = '=> path/to/directory_with_FUBAR_outfiles. ONLY if you want to position-specific +ve info')
     parser.add_argument('-o', type = str, required = True, help = '=> path/to/outfile.csv')
     return(parser.parse_args())
 
 def glob_files(path: str) -> list[str]:
     return(glob.glob(f'{path}/*.tsv'))
 
-def extract_maln(aln_dir: str, query_seqID: str, seq_sites: list[int]) -> list[str]:
-    from Bio.SeqIO.FastaIO import SimpleFastaParser
+def expand_motif_aln(aln_dir: str, query_seqID: str, seq_sites: list[int]) -> (int, list[str]):
+    '''Default shows only the species sequences with motif hits.
+    When an aln dir is specified, this function is invoked to
+    show the motif alignment across both hits and nonhits.'''
+    from Bio.SeqIO.FastaIO import SimpleFastaParser # import biopython only if this fxn is used
+
     with open(f'{aln_dir}/{query_seqID}.12taxa.fa') as aln_file:
         species_regions = []
+        seq_length = 0
         for title, sequence in SimpleFastaParser(aln_file):
-            species_regions.append([f'{title.split("_")[-1]}: {sequence[pos-1:pos+7]}' for pos in seq_sites])
-    return(list(map(list, zip(*species_regions))))
+            species_name = title.split('_')[-1]
+            if species_name == 'hg38':
+                seq_length = len(sequence.replace('-',''))
+            species_regions.append([f'{species_name}: {sequence[pos-1:pos+7]}' for pos in seq_sites])
+    return(seq_length, list(map(list, zip(*species_regions))))
+
+def map_PSRs(PSG_dir: str, query_seqID: str, seq_sites: list[int]) -> list[list[str]]:
+    '''Returns stringmap of Positive Selection at Residues (PSRs) from dir of FUBAR files, 
+    if relevant to the motif range (pos-1:pos+7). PSRs are recorded as '+', 
+    and non-PSRs are recorded as '_'.'''
+    site_map = [list(range(pos-1,pos+7)) for pos in seq_sites]
+    PSRs = []
+    try:
+        with open(f'{PSG_dir}/{query_seqID}.12taxa.fa.12taxon.tree.grid_info.posteriors.csv') as PSG_file:
+            next(PSG_file) # Skip first line
+            for line in PSG_file:
+                PSR = int(line.split('0.')[0])
+                PSRs.append(PSR)
+        for site_i, site in enumerate(site_map):
+            for pos_i, pos in enumerate(site):
+                if pos in PSRs:
+                    site_map[site_i][pos_i] = '+'
+                else:
+                    site_map[site_i][pos_i] = '_'
+            site_map[site_i] = ''.join(site)
+        return(site_map)
+    except IOError:
+        return([['________'] for _ in range(len(seq_sites))])
 
 def exclude_hits(hits_to_exclude: list[str], all_hits: list[str]) -> list[str]:
     nonhit_regions = []
@@ -30,17 +81,8 @@ def exclude_hits(hits_to_exclude: list[str], all_hits: list[str]) -> list[str]:
     return(nonhit_regions)
 
 # pandas agg func rename
-def sequenceID(series: pd.Series) -> str:
-    return(series[0:1])
-
-def start(series: pd.Series) -> int:
-    return(series[0:1])
-
-def concat_sites(series: pd.Series) -> tuple[str]:
-    return(tuple(series))
-
-def pval_min(series: pd.Series) -> float:
-    return(min(series))
+def Num_Unique(series: pd.Series) -> int:
+    return(len(set(series)))
 
 def human_hit(series: pd.Series) -> str:
     if series.str.contains('hg38').any():
@@ -61,12 +103,12 @@ def main():
     infimo_files = glob_files(args.fimodir.rstrip('/'))
     infile_ind = [1, 2, 6, 8] # 'sequence name', 'start', 'p-value', 'matched sequence'
 
-    #Set agg functions, formatted for desired colname outputs
-    agg_func_text = {'seqIDs': [sequenceID],
-                    'start': [start, 'count'],
-                    'species_seqs': [concat_sites],
-                    'pvalue': [pval_min],
-                    'species': [human_hit]}
+    agg_func_text = {'seqIDs': ['first'], # get one representative seqID (first occurrence)
+                    'start': ['first', 'count'], # get representative start val, and count of species hits
+                    'species_seqs': [tuple], # summarize species seq hits as tuple
+                    'matchedseq': [Num_Unique], # num of unique seq hits found
+                    'species_pvals': [tuple], # best hit approaches 0
+                    'species': [human_hit]} # Is this a human hit? Yes or No
 
     for ind, file in enumerate(infimo_files):
 
@@ -75,6 +117,7 @@ def main():
                                 names = ['seqname', 'start', 'pvalue', 'matchedseq'])
         tsv_data[['seqIDs', 'species']] = tsv_data.seqname.str.split('.12taxa.fa_', expand=True)
         tsv_data['species_seqs'] = tsv_data['species'].astype(str) + ': ' + tsv_data['matchedseq']
+        tsv_data['species_pvals'] = tsv_data['species'].astype(str) + ': ' + tsv_data['pvalue'].astype(str)
 
         #Retain unmerged data: hg38 matchedseq and pvalue data
         hg_data = tsv_data[tsv_data['species'] == 'hg38'].sort_values('start', axis = 0, ascending = True)
@@ -83,7 +126,7 @@ def main():
         tsv_data = (tsv_data.iloc[1: , 1:]
                     .groupby(['seqIDs', 'start'], as_index = False)
                     .agg(agg_func_text))
-        tsv_data.columns = [col[1] for col in tsv_data.columns.values] # replace colnames with subheader alone
+        tsv_data.columns = ['sequenceID', 'start', 'count', 'concat_sites', 'Num_Unique', 'org_pvals', 'human_hit'] # replace w/ readable colnames 
 
         #merge tsv_data to retained hg38 data and export
         merged_data = pd.merge(tsv_data, hg_data[['start', 'matchedseq', 'pvalue']],on='start', how='left')
@@ -96,8 +139,8 @@ def main():
             mstarts = tsv_data.start.astype(int) #motif start sites
             sp_hits_to_exclude = tsv_data.concat_sites
 
-            #extract aln of each motif across all primates regardless of score
-            sp_mregions = extract_maln(aln_directory, grp_seqID, mstarts)
+            #extract protein (AA) seq length, [aln of each motif across all primates] regardless of score
+            AA_length, sp_mregions = expand_motif_aln(aln_directory, grp_seqID, mstarts)
 
             #exclude hits already examined
             nonhit_mregions = exclude_hits(sp_hits_to_exclude, sp_mregions)
@@ -106,9 +149,28 @@ def main():
             nonhit_df = pd.DataFrame(columns = ['start', 'Non_hits'])
             nonhit_df['Non_hits'] = nonhit_mregions
             nonhit_df['start'] = tsv_data.start
+            nonhit_df['AA_seqlength'] = AA_length
 
             #merge nonhit df to merged_data
-            merged_data = pd.merge(merged_data, nonhit_df[['start', 'Non_hits']],on='start', how='left')
+            merged_data = pd.merge(merged_data, nonhit_df[['start', 'Non_hits', 'AA_seqlength']],on='start', how='left')
+
+        #OPTIONAL: use seqID and start pt to scrape residues under pos sel (PSRs)
+        if args.PSGdir:
+            #collect PSG relevant info
+            PSG_directory = args.PSGdir.rstrip('/')
+            grp_seqID = tsv_data['sequenceID'][0]
+            mstarts = tsv_data.start.astype(int) #motif start sites
+
+            #extract protein (AA) seq length, [aln of each motif across all primates] regardless of score
+            PSR_stringmap = map_PSRs(PSG_directory, grp_seqID, mstarts)
+
+            #create nonhit df to merge
+            PSR_df = pd.DataFrame(columns = ['start', 'PSRs'])
+            PSR_df['start'] = tsv_data.start
+            PSR_df['FUBAR_PSRs'] = PSR_stringmap
+
+            #merge nonhit df to merged_data
+            merged_data = pd.merge(merged_data, PSR_df[['start', 'FUBAR_PSRs']],on='start', how='left')
 
         #Create csv file if first glob file initiated, otherwise append to existing csv
         if ind == 0:
