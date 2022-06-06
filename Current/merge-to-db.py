@@ -2,7 +2,7 @@
 import argparse
 import configparser
 import json
-import logging
+# import logging
 import pandas as pd
 
 # set logging
@@ -50,6 +50,9 @@ def main():
     # Re-order db_df and merge to input df on keycol val
     db_df=db_df.loc[:, cols_order]
     in_df=pd.merge(in_df, db_df[[*cols_order]],on=keycol, how='left')
+
+    # Hard-coded, this order doesn't need to change
+    in_df.columns = ['sequenceID', 'start', 'count', 'concat_sites', 'Num_Unique', 'org_pvals', 'human_hit', 'human_site', 'pval_hg38', 'Non_hits', 'AA_seqlength', 'FUBAR_PSRs', 'Gene_Sym', 'calc_AF', 'PC1', 'Omega', 'Ifn_u2', 'Ifn_u5', 'Ifn_d2', 'Ifn_d5', 'GOBiologicalProcess', 'Pfam', 'Gene_Desc', 'Resource_Plate', 'Resource_Position', 'hORF_Length']
     in_df.to_csv(args.o, index=False, mode='w', header=True)
 
 

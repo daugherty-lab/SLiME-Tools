@@ -61,7 +61,10 @@ http://hgdownload.soe.ucsc.edu/goldenPath/hg38/multiz30way/alignments/
     * ```linsi
 
 4. Use motif to search against each alignment. Caveat: Data will be lost for poorly aligned regions, as FIMO converts "-" to "X", so any potential motifs separated by gaps will be largely ignored.
-```fimo --oc [path/to/desired_outfolder_directory] --verbosity 1 --text --thresh [your p-val cutoff] --max-stored-scores [a large positive integer] [path/to/protease_motif.txt] [path/to/alignment.fa]```
+* ```./recursive_FIMO.sh -i [inputdir] -m [motif file] -p [pval thresh] -o [outputdir]```
+
+* OPTIONAL: Delete 0byte FIMO output files
+    * find '/Users/britsu/Desktop/test/20220606-fimo' -size 0 -print -delete
 
 5. Collapse each fimo.tsv into one line per hit (e.g. a seq w/ 13 unique sites across the primate aln has 13 lines)
 ```python concat-hitsum.py -fimodir [path/to/fimo_tsv_directory] -o [path/to/desired_concat_output.csv]```
@@ -70,6 +73,7 @@ http://hgdownload.soe.ucsc.edu/goldenPath/hg38/multiz30way/alignments/
         * Specify alignment directory with -alndir flag
     * Get FUBAR associated calls for residues under positive selection (PSRs)
         * Specify FUBAR outfile directory with -PSGdir flag
+    * With both options: ~265s run-time w/ 12 primate proteomes, 20k canonical seq alignments)
 
 6. Merge desired database (db) .csv files
 ```python merge_dbs.py -i [path/to/main_db.csv] -db_dir [path/to/db_directory] -o [path/to/desired_merged_output.csv]```
@@ -79,6 +83,5 @@ http://hgdownload.soe.ucsc.edu/goldenPath/hg38/multiz30way/alignments/
 * Future versions: >1 matching/shared key columns are tolerated, if specified
 * Record merge settings for each database file in a separate text file to be handled in a pipeline
 
---In testing--
 7: Merge database file using a config file
 * Config file (.ini) contains filepath, column to join, and specific columns to add

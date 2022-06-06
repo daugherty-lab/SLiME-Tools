@@ -3,6 +3,7 @@ import argparse
 import glob
 # import logging
 import pandas as pd
+from time import perf_counter
 
 # set logging
 # logger=logging.getLogger(__name__)
@@ -35,13 +36,14 @@ def parse_args():
 def glob_files(path: str) -> list[str]:
     return(glob.glob(f'{path}/*.tsv'))
 
-def expand_motif_aln(aln_dir: str, query_seqID: str, seq_sites: list[int]) -> (int, list[str]):
+def expand_motif_aln(aln_dir: str, in_seqID: str, seq_sites: list[int]) -> (int, list[str]):
     '''Default shows only the species sequences with motif hits.
     When an aln dir is specified, this function is invoked to
     show the motif alignment across both hits and nonhits.'''
-    from Bio.SeqIO.FastaIO import SimpleFastaParser # import biopython only if this fxn is used
+    from Bio.SeqIO.FastaIO import SimpleFastaParser
 
-    with open(f'{aln_dir}/{query_seqID}.12taxa.fa') as aln_file:
+    # collect species name from title and relevant motif alignment from sequence
+    with open(f'{aln_dir}/{in_seqID}.12taxa.fa') as aln_file:
         species_regions = []
         seq_length = 0
         for title, sequence in SimpleFastaParser(aln_file):
@@ -51,28 +53,32 @@ def expand_motif_aln(aln_dir: str, query_seqID: str, seq_sites: list[int]) -> (i
             species_regions.append([f'{species_name}: {sequence[pos-1:pos+7]}' for pos in seq_sites])
     return(seq_length, list(map(list, zip(*species_regions))))
 
-def map_PSRs(PSG_dir: str, query_seqID: str, seq_sites: list[int]) -> list[list[str]]:
+def map_PSRs(PSG_dir: str, in_seqID: str, seq_sites: list[int]) -> list[list[str]]:
     '''Returns stringmap of Positive Selection at Residues (PSRs) from dir of FUBAR files, 
     if relevant to the motif range (pos-1:pos+7). PSRs are recorded as '+', 
-    and non-PSRs are recorded as '_'.'''
+    and non-PSRs are recorded as '-'.'''
     site_map = [list(range(pos-1,pos+7)) for pos in seq_sites]
     PSRs = []
-    try:
-        with open(f'{PSG_dir}/{query_seqID}.12taxa.fa.12taxon.tree.grid_info.posteriors.csv') as PSG_file:
+    try: # File may or may not exist, but if it does, collect PSR entries
+        with open(f'{PSG_dir}/{in_seqID}.12taxa.fa.12taxon.tree.grid_info.posteriors.csv') as PSG_file:
             next(PSG_file) # Skip first line
             for line in PSG_file:
                 PSR = int(line.split('0.')[0])
                 PSRs.append(PSR)
+        
+        # map sites with presence '+' or absence '_' of PSR
         for site_i, site in enumerate(site_map):
             for pos_i, pos in enumerate(site):
                 if pos in PSRs:
                     site_map[site_i][pos_i] = '+'
                 else:
-                    site_map[site_i][pos_i] = '_'
+                    site_map[site_i][pos_i] = '-'
             site_map[site_i] = ''.join(site)
         return(site_map)
-    except IOError:
-        return([['________'] for _ in range(len(seq_sites))])
+    except IOError: #if file doesn't exist, return default string
+        return(['--------' for _ in range(len(seq_sites))])
+    except StopIteration: #if file exists, but there are no sites, return default string
+        return(['--------' for _ in range(len(seq_sites))])
 
 def exclude_hits(hits_to_exclude: list[str], all_hits: list[str]) -> list[str]:
     nonhit_regions = []
@@ -80,7 +86,7 @@ def exclude_hits(hits_to_exclude: list[str], all_hits: list[str]) -> list[str]:
         nonhit_regions.append(set(all_hits[hit_index]).symmetric_difference(species))
     return(nonhit_regions)
 
-# pandas agg func rename
+# pandas .agg func rename
 def Num_Unique(series: pd.Series) -> int:
     return(len(set(series)))
 
@@ -97,6 +103,8 @@ def main():
     with the following info: 
     seq ID|AA pos|species hit: seq|min pval|hg38? (yes/no)|hg38 site|hg38 pval|species absent
     """
+    t1_start = perf_counter()
+
     args = parse_args()
 
     #Set files and columns to extract from
@@ -126,6 +134,8 @@ def main():
         tsv_data = (tsv_data.iloc[1: , 1:]
                     .groupby(['seqIDs', 'start'], as_index = False)
                     .agg(agg_func_text))
+        
+        # hard-coded -- this order doesn't need to change
         tsv_data.columns = ['sequenceID', 'start', 'count', 'concat_sites', 'Num_Unique', 'org_pvals', 'human_hit'] # replace w/ readable colnames 
 
         #merge tsv_data to retained hg38 data and export
@@ -178,6 +188,9 @@ def main():
             merged_data.to_csv(args.o, index = False, mode = 'w', header=True)
         else:
             merged_data.to_csv(args.o, index = False, mode = 'a', header=False)
+
+    t1_stop = perf_counter()
+    print("Elapsed time (seconds):", t1_stop-t1_start)
 
 
 if __name__ == '__main__':
