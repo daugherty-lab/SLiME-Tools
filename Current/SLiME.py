@@ -2,6 +2,7 @@
 
 import altair as alt
 import argparse
+import numpy as np
 import os
 import pandas as pd
 import streamlit as st
@@ -52,34 +53,24 @@ def get_scatterchart(data, x_ax: str, y_ax: str, x_span: tuple[int], y_span: tup
     return(s_chart)
 
 # set up altair bar plot for clv pvals
-def get_barchart(data, seqID: str, x_ax: str, y_ax1: str, y_ax2: str, x_span_upper: int, desc = "unknown"):
+def get_barchart(data, seqID: str, x_ax: str, y_ax: str, x_span_upper: int, desc = "unknown"):
     bchart = alt.Chart(data, title = f"Detected cleavage sites in {seqID} ({desc}, {x_span_upper} AAs)"
-        ).mark_bar(opacity = 0.6
+        ).mark_bar(opacity = 0.9
         ).encode(x = alt.X(x_ax, title = 'P4 start (AA pos)',
-                scale = alt.Scale(domain = [1, x_span_upper+100])),
-                y=alt.Y(y_ax1, title='motif p-val'),
-                color=alt.condition(alt.datum.human_hit == 'Yes',
-                alt.value('orange'),
-                alt.value('blue')
-                ),
-                tooltip=['start', 'count', 'Num_Unique','concat_sites', 'org_pvals', 'Non_hits', 'best_pval', 'human_site', 'pval_hg38', 'FUBAR_PSRs']
-        )
-    
-    # best hit data
-    bchart2 = alt.Chart(data
-        ).mark_bar(opacity = 1
-        ).encode(x = alt.X(x_ax,
-                scale = alt.Scale(domain = [1, x_span_upper+100])),
-                y = y_ax2,
+                            scale = alt.Scale(domain = [1, x_span_upper+50])),
+                y=alt.Y(y_ax, title='motif -log(p-val)'),
+                color=alt.Color('human_hit',
+                            scale=alt.Scale(domain=sorted(data.human_hit.tolist(), reverse=True),
+                                                range=['orange','violet'])),
                 tooltip=['start', 'count', 'Num_Unique','concat_sites', 'org_pvals', 'Non_hits', 'best_pval', 'human_site', 'pval_hg38', 'FUBAR_PSRs']
         )
     
     # line drawn to indicate end of human transcript
-    overlay = pd.DataFrame({'x': [x_span_upper]})
+    overlay = pd.DataFrame({'x': [0, x_span_upper]})
     vline = alt.Chart(overlay).mark_rule(color='red', strokeWidth=1).encode(x='x:Q')
 
 
-    layered = alt.layer(bchart2, bchart, vline
+    layered = alt.layer(vline, bchart
         ).configure_view(stroke='transparent'
         ).configure_axis(labelFontSize=14,
                         titleFontSize=14
@@ -107,7 +98,7 @@ hu_status = ['<Select>', 'Yes', 'No']
 evo_list = ['<Select>', 'PC1', 'Omega']
 
 # Add filter widgets
-query_list = []
+clv_query_list = []
 with st.sidebar:
     st.header("Filter Cleavage Data")
 
@@ -122,6 +113,8 @@ with st.sidebar:
     st.subheader("By Target ID")
     target_ID = st.text_input(label = 'Input sequenceID or Gene_Sym', 
                                 value= '')
+    by_human_search = st.selectbox(label = "Only Human Hit", 
+                            options = hu_status)
     st.markdown("***") # Add line space in sidebar
 
     # Simple dropdown filters
@@ -159,36 +152,49 @@ with st.sidebar:
 
 # Set query if filtering by orthogonal data
 if by_human != '<Select>':
-    query_list.append(f"human_hit=='{by_human}'")
+    clv_query_list.append(f"human_hit=='{by_human}'")
 if by_ifn != '<Select>':
-    query_list.append(f"{by_ifn}=='YES'")
+    clv_query_list.append(f"{by_ifn}=='YES'")
 if by_evo != '<Select>':
     evo_min, evo_max = values
-    query_list.append(f"{by_evo}>={evo_min} and {by_evo}<={evo_max}")
-query = " and ".join(query_list)
+    clv_query_list.append(f"{by_evo}>={evo_min} and {by_evo}<={evo_max}")
 
-# Perform query filtering based on sidebar inputs
+clv_query = " and ".join(clv_query_list)
+
+# Perform clv query filtering based on sidebar inputs
 if target_ID:
-    df_clv_filtered = df_clv.query(f"sequenceID=='{target_ID}' or Gene_Sym=='{target_ID}'"
-                                ).sort_values('AA_seqlength', ascending=False)
+    ini_search = [f"sequenceID=='{target_ID}' or Gene_Sym=='{target_ID}'"]
+    if by_human_search != '<Select>':
+        ini_search.append(f"human_hit=='{by_human_search}'")
+    search_query = " and ".join(ini_search)
+    df_clv_filtered = df_clv.query(search_query).sort_values('AA_seqlength', ascending=False)
+    # Add log10 data
+    df_clv_filtered['log_best_pval'] = np.log10(df_clv_filtered['best_pval']) * -1
     for uniqID in df_clv_filtered['sequenceID'].unique():
-        bar_xlim = df_clv_filtered.query(f"sequenceID=='{uniqID}'")['AA_seqlength'].max()
-        tscript_num = df_clv_filtered.query(f"sequenceID=='{uniqID}'")['description'].iloc[0].split(',')[-2]
-        barchart = get_barchart(df_clv_filtered, uniqID, 'start', 'pval_hg38', 'best_pval', bar_xlim, tscript_num)
+        uniqID_df = df_clv_filtered.query(f"sequenceID=='{uniqID}'")
+        bar_xlim = uniqID_df['AA_seqlength'].max()
+        tscript_num = uniqID_df['description'].iloc[0].split(',')[-2]
+        barchart = get_barchart(uniqID_df, uniqID, 'start', 'log_best_pval', bar_xlim, tscript_num)
         st.altair_chart(barchart, use_container_width = True)
-elif query:
-    df_clv_filtered = df_clv.query(query)
+elif clv_query:
+    df_clv_filtered = df_clv.query(clv_query)
 else:
     df_clv_filtered = df_clv
-st.write(df_clv_filtered)
+st.write(df_clv_filtered.iloc[ :, :17])
 
-# set up Altair plot for selected hits
-if by_type != '<Select>':
+# Perform flat query filtering based on sidebars
+if by_evo != '<Select>' and by_type != '<Select>':
+    mask_flat = df_flat[by_type].isin(df_clv_filtered[by_type])
+    df_flat_filtered = df_flat[mask_flat].query(f"{by_evo}>={evo_min} and {by_evo}<={evo_max}")
+elif by_evo == '<Select>' and by_type != '<Select>':
     mask_flat = df_flat[by_type].isin(df_clv_filtered[by_type])
     df_flat_filtered = df_flat[mask_flat]
+elif by_evo != '<Select>' and by_type == '<Select>':
+    df_flat_filtered = df_flat.query(f"{by_evo}>={evo_min} and {by_evo}<={evo_max}")
 else:
     df_flat_filtered = df_flat
 
+# set up Altair plot for selected hits
 if by_axes != '<Select>':
     X_axis = by_axes.split(' vs ')[1]
     Y_axis = by_axes.split(' vs ')[0]
