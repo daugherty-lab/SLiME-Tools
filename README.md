@@ -64,7 +64,7 @@ http://hgdownload.soe.ucsc.edu/goldenPath/hg38/multiz30way/alignments/
 * ```./recursive_FIMO.sh -i [inputdir] -m [motif file] -p [pval thresh] -o [outputdir]```
 
 * OPTIONAL: Delete 0byte FIMO output files
-    * find '/Users/britsu/Desktop/test/20220606-fimo' -size 0 -print -delete
+    * ```find [path/to/fimo.tsv_dir] -size 0 -print -delete```
 
 5. Collapse each fimo.tsv into one line per hit (e.g. a seq w/ 13 unique sites across the primate aln has 13 lines)
 ```python concat-hitsum.py -fimodir [path/to/fimo_tsv_directory] -o [path/to/desired_concat_output.csv]```
@@ -74,6 +74,7 @@ http://hgdownload.soe.ucsc.edu/goldenPath/hg38/multiz30way/alignments/
     * Get FUBAR associated calls for residues under positive selection (PSRs)
         * Specify FUBAR outfile directory with -PSGdir flag
     * With both options: ~265s run-time w/ 12 primate proteomes, 20k canonical seq alignments)
+    * ~575s run-time w/ 12 primate proteomes, all seq alns 
 
 6. Merge desired database (db) .csv files
 ```python merge_dbs.py -i [path/to/main_db.csv] -db_dir [path/to/db_directory] -o [path/to/desired_merged_output.csv]```
@@ -85,3 +86,6 @@ http://hgdownload.soe.ucsc.edu/goldenPath/hg38/multiz30way/alignments/
 
 7: Merge database file using a config file
 * Config file (.ini) contains filepath, column to join, and specific columns to add
+
+8. Visualize using Streamlit, Altair, plotly on localhost
+```streamlit run propredict.py -- -clvdata [path/to/clvdata.csv] -flatdata [path/to/flatdata.csv]```

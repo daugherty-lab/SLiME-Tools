@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 import argparse
 import glob
-# import logging
 import pandas as pd
 
 def parse_args():
-    parser=argparse.ArgumentParser(prog='concat-hitsum.py', conflict_handler='resolve')
+    parser=argparse.ArgumentParser(prog='merge-dbs.py', conflict_handler='resolve')
     parser.add_argument('-db', type=str, required=True, help='=> path/to/main_db.csv')
     parser.add_argument('-db_dir', type=str, required=True, help='=> path/to/database_directory')
     parser.add_argument('-o', type=str, required=True, help='=> path/to/merged_outfile.csv')

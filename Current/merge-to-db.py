@@ -52,7 +52,8 @@ def main():
     in_df=pd.merge(in_df, db_df[[*cols_order]],on=keycol, how='left')
 
     # Hard-coded, this order doesn't need to change
-    in_df.columns = ['sequenceID', 'start', 'count', 'concat_sites', 'Num_Unique', 'org_pvals', 'human_hit', 'human_site', 'pval_hg38', 'Non_hits', 'AA_seqlength', 'FUBAR_PSRs', 'Gene_Sym', 'calc_AF', 'PC1', 'Omega', 'Ifn_u2', 'Ifn_u5', 'Ifn_d2', 'Ifn_d5', 'GOBiologicalProcess', 'Pfam', 'Gene_Desc', 'Resource_Plate', 'Resource_Position', 'hORF_Length']
+    final_cols_order = ['sequenceID', 'Gene_Sym', 'description', 'AA_seqlength', 'start', 'count', 'Num_Unique', 'concat_sites', 'org_pvals', 'Non_hits', 'best_pval', 'human_site', 'pval_hg38', 'FUBAR_PSRs', 'PC1', 'Omega', 'calc_AF', 'log_calc_AF', 'human_hit', 'Ifn_u2', 'Ifn_u5', 'Ifn_d2', 'Ifn_d5', 'GOBiologicalProcess', 'Pfam', 'Resource_Plate', 'Resource_Position', 'hORF_Length']
+    in_df=in_df.loc[:, final_cols_order]
     in_df.to_csv(args.o, index=False, mode='w', header=True)
 
 

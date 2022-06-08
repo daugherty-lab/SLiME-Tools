@@ -2,6 +2,7 @@
 import argparse
 import glob
 # import logging
+import os.path
 import pandas as pd
 from time import perf_counter
 
@@ -107,6 +108,11 @@ def main():
 
     args = parse_args()
 
+    if os.path.isfile(args.o):
+        sys.exit(f"File {args.o} exists")
+    else:
+        print (f"Building {args.o}...")
+
     #Set files and columns to extract from
     infimo_files = glob_files(args.fimodir.rstrip('/'))
     infile_ind = [1, 2, 6, 8] # 'sequence name', 'start', 'p-value', 'matched sequence'
@@ -115,7 +121,8 @@ def main():
                     'start': ['first', 'count'], # get representative start val, and count of species hits
                     'species_seqs': [tuple], # summarize species seq hits as tuple
                     'matchedseq': [Num_Unique], # num of unique seq hits found
-                    'species_pvals': [tuple], # best hit approaches 0
+                    'species_pvals': [tuple], # scores for each species hit
+                    'pvalue': 'max', # best hit, no matter what species
                     'species': [human_hit]} # Is this a human hit? Yes or No
 
     for ind, file in enumerate(infimo_files):
@@ -136,7 +143,7 @@ def main():
                     .agg(agg_func_text))
         
         # hard-coded -- this order doesn't need to change
-        tsv_data.columns = ['sequenceID', 'start', 'count', 'concat_sites', 'Num_Unique', 'org_pvals', 'human_hit'] # replace w/ readable colnames 
+        tsv_data.columns = ['sequenceID', 'start', 'count', 'concat_sites', 'Num_Unique', 'org_pvals', 'best_pval', 'human_hit'] # replace w/ readable colnames 
 
         #merge tsv_data to retained hg38 data and export
         merged_data = pd.merge(tsv_data, hg_data[['start', 'matchedseq', 'pvalue']],on='start', how='left')
