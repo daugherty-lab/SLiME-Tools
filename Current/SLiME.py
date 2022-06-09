@@ -25,10 +25,10 @@ except SystemExit as e:
 # IMPORTANT: Cache the conversion to prevent computation on every rerun
 @st.cache
 def get_flatdata():
-    return(pd.read_csv(os.path.join(os.getcwd(), args.clvdata)))
+    return(pd.read_csv(os.path.join(os.getcwd(), args.flatdata)))
 @st.cache
 def get_clv_predictions():
-    return(pd.read_csv(os.path.join(os.getcwd(), args.flatdata)))
+    return(pd.read_csv(os.path.join(os.getcwd(), args.clvdata)))
 @st.cache
 def convert_df_to_csv(df):
   return df.to_csv().encode('utf-8')
@@ -54,8 +54,8 @@ def get_scatterchart(data, x_ax: str, y_ax: str, x_span: tuple[int], y_span: tup
             tooltip = ['sequenceID', 'Gene_Sym','PC1','Omega', 'calc_AF']
         ).configure_axis(
             labelFontSize = 14,
-            titleFontSize = 14
-        )
+            titleFontSize = 16
+        ).configure_title(fontSize = 18)
     return(s_chart)
 
 # set up altair bar plot for clv pvals
@@ -70,11 +70,11 @@ def get_barchart(data, seqID: str, x_ax: str, y_ax: str, y_ax2: str, x_hi: int, 
             y=alt.Y(y_ax, 
                 title='motif -log(p-val)',
                 scale = alt.Scale(domain = [0, y_hi])),
-                color=alt.Color('human_hit',
-                    scale=alt.Scale(
-                        domain=sorted(data.human_hit.tolist(), reverse=True),
-                        range=['orange','violet'])),
-            tooltip=['start', 'count', 'Num_Unique','concat_sites', 'org_pvals', 'Non_hits', 'best_pval', 'human_site', 'pval_hg38', 'FUBAR_PSRs']
+                color = alt.Color('human_hit',
+                    scale = alt.Scale(
+                        domain = sorted(data.human_hit.tolist(), reverse = True),
+                        range = ['orange','violet'])),
+            tooltip = ['start', 'count', 'Num_Unique','concat_sites', 'org_pvals', 'Non_hits', 'best_pval', 'human_site', 'pval_hg38', 'FUBAR_PSRs']
         )
 
     s_chart = alt.Chart(data,
@@ -83,23 +83,33 @@ def get_barchart(data, seqID: str, x_ax: str, y_ax: str, y_ax2: str, x_hi: int, 
             x = alt.X(x_ax, 
                 scale = alt.Scale(domain = [1, x_hi+50])),
             y = alt.Y(y_ax2,
-                scale = alt.Scale(domain = [0, y_hi]))
+                scale = alt.Scale(domain = [0, y_hi])),
+            tooltip = ['start', 'count', 'Num_Unique','concat_sites', 'org_pvals', 'Non_hits', 'best_pval', 'human_site', 'pval_hg38', 'FUBAR_PSRs']
         )
     
     # line drawn to indicate end of human transcript
     overlay = pd.DataFrame({'x': [0, x_hi]})
-    vline = alt.Chart(overlay).mark_rule(color='red', strokeWidth=1).encode(x='x:Q')
+    vline = alt.Chart(overlay).mark_rule(color = 'red', strokeWidth = 1).encode(x = 'x:Q')
 
 
     layered = alt.layer(vline, bchart, s_chart
-        ).configure_view(stroke='transparent'
-        ).configure_axis(labelFontSize=14,
-                        titleFontSize=14
-        )
+        ).configure_view(stroke = 'transparent'
+        ).configure_axis(labelFontSize = 14,
+            titleFontSize = 16
+        ).configure_title(fontSize = 18)
     return(layered)
 
-# configuration of the page
+# Page configs
 st.set_page_config(layout="wide")
+# CSS to inject contained in a string
+hide_table_row_index = """
+            <style>
+            tbody th {display:none}
+            .blank {display:none}
+            </style>
+            """
+# Inject CSS with Markdown
+st.markdown(hide_table_row_index, unsafe_allow_html=True)
 
 # load dataframes
 df_flat = get_flatdata()
@@ -109,6 +119,7 @@ st.title('SLiME vizualisation tool')
 st.markdown("""
 This app performs simple visualization from evolutionary and cleavage prediction datasets!
 If you want to clear options, refresh the page.
+***
 """)
 
 # set drop-down filter options
@@ -194,6 +205,12 @@ if target_ID:
     # Add log10 data
     df_clv_filtered['log_best_pval'] = np.log10(df_clv_filtered['best_pval']) * -1
     df_clv_filtered['log_pval_hg38'] = np.log10(df_clv_filtered['pval_hg38']) * -1
+    # Set col and vals for ORFeome data
+    # ORFeome_headers = list(df_clv_filtered[['Resource_Plate', 'Resource_Position', 'hORF_Length']].columns)
+    # ORFeome_data = list(df_clv_filtered[['Resource_Plate', 'Resource_Position', 'hORF_Length']].values.flatten())
+    # for col_i, col in enumerate(st.columns(3)):
+    #     col.metric(label = ORFeome_headers[col_i], value = ORFeome_data[col_i])
+    st.table(df_clv_filtered[['Resource_Plate', 'Resource_Position', 'hORF_Length']].iloc[0:1])
     for uniqID in df_clv_filtered['sequenceID'].unique():
         uniqID_df = df_clv_filtered.query(f"sequenceID=='{uniqID}'")
         bar_xlim = uniqID_df['AA_seqlength'].max()
@@ -206,14 +223,15 @@ elif clv_query:
 else:
     df_clv_filtered = df_clv
 
-st.write(df_clv_filtered.iloc[ :, :17])
+st.dataframe(df_clv_filtered.iloc[ :, :17])
 
 st.download_button(
-  label="Download clv data as CSV",
+  label="Download as CSV",
   data=convert_df_to_csv(df_clv_filtered.iloc[ :, :17]),
   file_name='clv_data.csv',
   mime='text/csv',
 )
+st.markdown("***")
 
 # Perform flat query filtering based on sidebars
 if by_evo != '<Select>' and by_type != '<Select>':
@@ -242,13 +260,14 @@ scatterchart = get_scatterchart(df_flat_filtered, X_axis, Y_axis, scatter_xlims,
 
 st.altair_chart(scatterchart, use_container_width = True)
 
-st.markdown("***")
-
 # Counters for clv data
 clv_counter = len(df_clv_filtered.index)
 clv_by_transcript_counter = len(df_clv_filtered['sequenceID'].unique())
 clv_by_gene_counter = len(df_clv_filtered['Gene_Sym'].unique())
-st.write(f"Clv hits: {clv_counter}")
+st.markdown("""***
+### Summary of counts
+""")
+st.write(f"Clv hits (Total): {clv_counter} \n ")
 st.write(f"Clv hits by (Transcripts, Genes): ({clv_by_transcript_counter}, {clv_by_gene_counter})")
 
 # # Counters for flat data
@@ -258,3 +277,4 @@ st.write(f"Flat (Transcripts, Genes) shown: ({flat_counter}, {flat_by_gene_count
 
 #Filter summary
 st.write(f"Filters used: {clv_query}")
+
