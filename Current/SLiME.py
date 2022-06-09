@@ -22,12 +22,16 @@ except SystemExit as e:
     os._exit(e.code)
 
 # Loading the data
+# IMPORTANT: Cache the conversion to prevent computation on every rerun
 @st.cache
 def get_flatdata():
     return(pd.read_csv(os.path.join(os.getcwd(), args.clvdata)))
 @st.cache
 def get_clv_predictions():
     return(pd.read_csv(os.path.join(os.getcwd(), args.flatdata)))
+@st.cache
+def convert_df_to_csv(df):
+  return df.to_csv().encode('utf-8')
 
 # set slider option
 def update_slider():
@@ -104,6 +108,7 @@ df_clv = get_clv_predictions()
 st.title('SLiME vizualisation tool')
 st.markdown("""
 This app performs simple visualization from evolutionary and cleavage prediction datasets!
+If you want to clear options, refresh the page.
 """)
 
 # set drop-down filter options
@@ -202,6 +207,13 @@ else:
     df_clv_filtered = df_clv
 
 st.write(df_clv_filtered.iloc[ :, :17])
+
+st.download_button(
+  label="Download clv data as CSV",
+  data=convert_df_to_csv(df_clv_filtered.iloc[ :, :17]),
+  file_name='clv_data.csv',
+  mime='text/csv',
+)
 
 # Perform flat query filtering based on sidebars
 if by_evo != '<Select>' and by_type != '<Select>':
