@@ -123,7 +123,7 @@ def main():
                     'species_seqs': [tuple], # summarize species seq hits as tuple
                     'matchedseq': [Num_Unique], # num of unique seq hits found
                     'species_pvals': [tuple], # scores for each species hit
-                    'pvalue': 'max', # best hit, no matter what species
+                    'pvalue': 'min', # best hit, no matter what species
                     'species': [human_hit]} # Is this a human hit? Yes or No
 
     for ind, file in enumerate(infimo_files):

@@ -42,35 +42,52 @@ def update_numin():
 def get_scatterchart(data, x_ax: str, y_ax: str, x_span: tuple[int], y_span: tuple[int]):
     s_chart = alt.Chart(data, title = 'OWM Primate Evolutionary Fingerprinting'
         ).mark_circle(size = 30,opacity = 0.8
-        ).encode(x = alt.X(x_ax, title = x_ax,
+        ).encode(
+            x = alt.X(x_ax, 
                 scale = alt.Scale(domain = [x_span[0], x_span[1]])),
-                y=alt.Y(y_ax, title=y_ax, 
-                scale = alt.Scale(domain=[y_span[0], y_span[1]])),
-                tooltip=['sequenceID', 'Gene_Sym','PC1','Omega', 'calc_AF']
-        ).configure_axis(labelFontSize=14,
-                        titleFontSize=14
+            y = alt.Y(y_ax, 
+                scale = alt.Scale(domain = [y_span[0], y_span[1]])),
+            tooltip = ['sequenceID', 'Gene_Sym','PC1','Omega', 'calc_AF']
+        ).configure_axis(
+            labelFontSize = 14,
+            titleFontSize = 14
         )
     return(s_chart)
 
 # set up altair bar plot for clv pvals
-def get_barchart(data, seqID: str, x_ax: str, y_ax: str, x_span_upper: int, desc = "unknown"):
-    bchart = alt.Chart(data, title = f"Detected cleavage sites in {seqID} ({desc}, {x_span_upper} AAs)"
-        ).mark_bar(opacity = 0.9
-        ).encode(x = alt.X(x_ax, title = 'P4 start (AA pos)',
-                            scale = alt.Scale(domain = [1, x_span_upper+50])),
-                y=alt.Y(y_ax, title='motif -log(p-val)'),
+def get_barchart(data, seqID: str, x_ax: str, y_ax: str, y_ax2: str, x_hi: int, y_hi: int, desc = "unknown"):
+    bchart = alt.Chart(data, 
+        title = f"Detected cleavage sites in {seqID} ({desc}, {x_hi} AAs)"
+        ).mark_bar(opacity = 0.8
+        ).encode(
+            x = alt.X(x_ax, 
+                title = 'P4 start (AA pos)',
+                scale = alt.Scale(domain = [1, x_hi+50])),
+            y=alt.Y(y_ax, 
+                title='motif -log(p-val)',
+                scale = alt.Scale(domain = [0, y_hi])),
                 color=alt.Color('human_hit',
-                            scale=alt.Scale(domain=sorted(data.human_hit.tolist(), reverse=True),
-                                                range=['orange','violet'])),
-                tooltip=['start', 'count', 'Num_Unique','concat_sites', 'org_pvals', 'Non_hits', 'best_pval', 'human_site', 'pval_hg38', 'FUBAR_PSRs']
+                    scale=alt.Scale(
+                        domain=sorted(data.human_hit.tolist(), reverse=True),
+                        range=['orange','violet'])),
+            tooltip=['start', 'count', 'Num_Unique','concat_sites', 'org_pvals', 'Non_hits', 'best_pval', 'human_site', 'pval_hg38', 'FUBAR_PSRs']
+        )
+
+    s_chart = alt.Chart(data,
+        ).mark_circle(opacity = 0.9
+        ).encode(
+            x = alt.X(x_ax, 
+                scale = alt.Scale(domain = [1, x_hi+50])),
+            y = alt.Y(y_ax2,
+                scale = alt.Scale(domain = [0, y_hi]))
         )
     
     # line drawn to indicate end of human transcript
-    overlay = pd.DataFrame({'x': [0, x_span_upper]})
+    overlay = pd.DataFrame({'x': [0, x_hi]})
     vline = alt.Chart(overlay).mark_rule(color='red', strokeWidth=1).encode(x='x:Q')
 
 
-    layered = alt.layer(vline, bchart
+    layered = alt.layer(vline, bchart, s_chart
         ).configure_view(stroke='transparent'
         ).configure_axis(labelFontSize=14,
                         titleFontSize=14
@@ -113,7 +130,7 @@ with st.sidebar:
     st.subheader("By Target ID")
     target_ID = st.text_input(label = 'Input sequenceID or Gene_Sym', 
                                 value= '')
-    by_human_search = st.selectbox(label = "Only Human Hit", 
+    by_human_search = st.selectbox(label = "Human Hit Status:", 
                             options = hu_status)
     st.markdown("***") # Add line space in sidebar
 
@@ -150,6 +167,7 @@ with st.sidebar:
                             )
     st.markdown("***") # Add line space in sidebar
 
+
 # Set query if filtering by orthogonal data
 if by_human != '<Select>':
     clv_query_list.append(f"human_hit=='{by_human}'")
@@ -170,22 +188,26 @@ if target_ID:
     df_clv_filtered = df_clv.query(search_query).sort_values('AA_seqlength', ascending=False)
     # Add log10 data
     df_clv_filtered['log_best_pval'] = np.log10(df_clv_filtered['best_pval']) * -1
+    df_clv_filtered['log_pval_hg38'] = np.log10(df_clv_filtered['pval_hg38']) * -1
     for uniqID in df_clv_filtered['sequenceID'].unique():
         uniqID_df = df_clv_filtered.query(f"sequenceID=='{uniqID}'")
         bar_xlim = uniqID_df['AA_seqlength'].max()
+        bar_ylim = uniqID_df['log_best_pval'].max()
         tscript_num = uniqID_df['description'].iloc[0].split(',')[-2]
-        barchart = get_barchart(uniqID_df, uniqID, 'start', 'log_best_pval', bar_xlim, tscript_num)
+        barchart = get_barchart(uniqID_df, uniqID, 'start', 'log_best_pval', 'log_pval_hg38', bar_xlim, bar_ylim, tscript_num)
         st.altair_chart(barchart, use_container_width = True)
 elif clv_query:
     df_clv_filtered = df_clv.query(clv_query)
 else:
     df_clv_filtered = df_clv
+
 st.write(df_clv_filtered.iloc[ :, :17])
 
 # Perform flat query filtering based on sidebars
 if by_evo != '<Select>' and by_type != '<Select>':
     mask_flat = df_flat[by_type].isin(df_clv_filtered[by_type])
     df_flat_filtered = df_flat[mask_flat].query(f"{by_evo}>={evo_min} and {by_evo}<={evo_max}")
+    st.write(f"Matching clv data by {by_type}")
 elif by_evo == '<Select>' and by_type != '<Select>':
     mask_flat = df_flat[by_type].isin(df_clv_filtered[by_type])
     df_flat_filtered = df_flat[mask_flat]
@@ -207,3 +229,20 @@ scatter_ylims = (df_flat[Y_axis].min(skipna=True), df_flat[Y_axis].max(skipna=Tr
 scatterchart = get_scatterchart(df_flat_filtered, X_axis, Y_axis, scatter_xlims, scatter_ylims)
 
 st.altair_chart(scatterchart, use_container_width = True)
+
+st.markdown("***")
+
+# Counters for clv data
+clv_counter = len(df_clv_filtered.index)
+clv_by_transcript_counter = len(df_clv_filtered['sequenceID'].unique())
+clv_by_gene_counter = len(df_clv_filtered['Gene_Sym'].unique())
+st.write(f"Clv hits: {clv_counter}")
+st.write(f"Clv hits by (Transcripts, Genes): ({clv_by_transcript_counter}, {clv_by_gene_counter})")
+
+# # Counters for flat data
+flat_counter = len(df_flat_filtered.index)
+flat_by_gene_counter = len(df_flat_filtered['Gene_Sym'].unique())
+st.write(f"Flat (Transcripts, Genes) shown: ({flat_counter}, {flat_by_gene_counter})")
+
+#Filter summary
+st.write(f"Filters used: {clv_query}")
