@@ -59,9 +59,9 @@ def get_scatterchart(data, x_ax: str, y_ax: str, x_span: tuple[int], y_span: tup
     return(s_chart)
 
 # set up altair bar plot for clv pvals
-def get_barchart(data, seqID: str, x_ax: str, y_ax: str, y_ax2: str, x_hi: int, y_hi: int, desc = "unknown"):
+def get_barchart(data, seqID: str, x_ax: str, y_ax: str, y_ax2: str, x_hi: int, y_hi: int, desc = "transcript"):
     bchart = alt.Chart(data, 
-        title = f"Detected cleavage sites in {seqID} ({desc}, {x_hi} AAs)"
+        title = f"Detected cleavage sites in {seqID} ({desc}, {x_hi}AAs)"
         ).mark_bar(opacity = 0.8
         ).encode(
             x = alt.X(x_ax, 
@@ -215,7 +215,11 @@ if target_ID:
         uniqID_df = df_clv_filtered.query(f"sequenceID=='{uniqID}'")
         bar_xlim = uniqID_df['AA_seqlength'].max()
         bar_ylim = uniqID_df['log_best_pval'].max()
-        tscript_num = uniqID_df['description'].iloc[0].split(',')[-2]
+        desc_parse = uniqID_df['description'].iloc[0]
+        if 'transcript' in desc_parse:
+            tscript_num = desc_parse.split(',')[-2]
+        else:
+            tscript_num = "transcript"
         barchart = get_barchart(uniqID_df, uniqID, 'start', 'log_best_pval', 'log_pval_hg38', bar_xlim, bar_ylim, tscript_num)
         st.altair_chart(barchart, use_container_width = True)
 elif clv_query:
