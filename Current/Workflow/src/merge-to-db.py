@@ -23,7 +23,7 @@ import pandas as pd
 # logger.addHandler(stream_handler)
 
 def parse_args():
-    parser=argparse.ArgumentParser(prog='concat-hitsum.py', conflict_handler='resolve')
+    parser=argparse.ArgumentParser(prog='merge-to-db.py', conflict_handler='resolve')
     parser.add_argument('-i', type=str, required=False, help='=> path/to/infile.csv')
     parser.add_argument('-dbconfig', type=str, required=False, help='=> path/to/main_db.ini')
     parser.add_argument('-o', type=str, required=False, help='=> path/to/merged_outfile.csv')

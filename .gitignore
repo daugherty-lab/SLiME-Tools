@@ -1,5 +1,9 @@
 # logging folders
 log/
+Current/Workflow/_LAST
+Current/Workflow/2022*
+Current/Workflow/cromwell*
+*_inputs.json
 
 # extended fimo file types
 fimo.gff

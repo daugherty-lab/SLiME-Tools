@@ -272,12 +272,12 @@ st.markdown("""***
 ### Summary of counts
 """)
 st.write(f"Clv hits (Total): {clv_counter} \n ")
-st.write(f"Clv hits by (Transcripts, Genes): ({clv_by_transcript_counter}, {clv_by_gene_counter})")
+st.write(f"Clv hits by (Aligned Transcripts, Genes): ({clv_by_transcript_counter}, {clv_by_gene_counter})")
 
 # # Counters for flat data
 flat_counter = len(df_flat_filtered.index)
 flat_by_gene_counter = len(df_flat_filtered['Gene_Sym'].unique())
-st.write(f"Flat (Transcripts, Genes) shown: ({flat_counter}, {flat_by_gene_counter})")
+st.write(f"Flat (Aligned Transcripts, Genes): ({flat_counter}, {flat_by_gene_counter})")
 
 #Filter summary
 st.write(f"Filters used: {clv_query}")

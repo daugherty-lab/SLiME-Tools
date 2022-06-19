@@ -21,10 +21,19 @@ while [[ "$#" -gt 0 ]]; do
     shift # to the next str, if any, then loop
 done
 
-echo "Set inputdir: $inputdir"
-echo "Set motif: $motif"
-echo "Set pval: $pval"
-echo "Set outputdir: $outputdir"
+# echo "Set inputdir: $inputdir"
+# echo "Set motif: $motif"
+# echo "Set pval: $pval"
+# echo "Set outputdir: $outputdir"
+
+# if [ -d "$outputdir" ]
+# then
+#     echo "Writing files to: $outputdir."
+# else
+#     echo "Creating directory: $outputdir."
+#     mkdir $outputdir
+#     echo "Writing files to: $outputdir."
+# fi
 
 for f in $inputdir/*
 do
