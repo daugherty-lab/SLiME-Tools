@@ -211,6 +211,7 @@ if target_ID:
     # for col_i, col in enumerate(st.columns(3)):
     #     col.metric(label = ORFeome_headers[col_i], value = ORFeome_data[col_i])
     st.table(df_clv_filtered[['Resource_Plate', 'Resource_Position', 'hORF_Length']].iloc[0:1])
+    st.table(df_clv_filtered[['Ifn_u2', 'Ifn_u5', 'Ifn_d2', 'Ifn_d5']].iloc[0:1])
     for uniqID in df_clv_filtered['sequenceID'].unique():
         uniqID_df = df_clv_filtered.query(f"sequenceID=='{uniqID}'")
         bar_xlim = uniqID_df['AA_seqlength'].max()
