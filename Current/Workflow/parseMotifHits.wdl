@@ -19,7 +19,7 @@ workflow parseMotifHits {
     String merge_to_db_key
     String merged_out
   }
-  call recursive_FIMO {
+  call iterative_FIMO {
     input: infiles=aln_inputdir, motif=FIMO_motif, pval=FIMO_pval, FIMO_out=FIMO_dir
   }
   Boolean FIMO_status=recursive_FIMO.success
@@ -39,7 +39,7 @@ workflow parseMotifHits {
 }
 
 #### TASK DEFINITIONS
-task recursive_FIMO {
+task iterative_FIMO {
   input {
     String infiles
     String motif
@@ -59,7 +59,7 @@ task recursive_FIMO {
       fi
 
       # Run FIMO on every file in specified directory
-      echo "Running recursive_FIMO..."
+      echo "Running iterative_FIMO..."
       for f in ~{infiles}/*.fa
       do
         echo "Processing $f file..."
@@ -69,7 +69,7 @@ task recursive_FIMO {
         fimo --oc ~{FIMO_out} --verbosity 1 --text --thresh ~{pval} --max-stored-scores 8000000 \
         ~{motif} $f > "~{FIMO_out}/$baseFname""_fimo.tsv" 2> /dev/null
       done
-      echo "recursive_FIMO completed."
+      echo "iterative_FIMO completed."
 
       # Delete empty .tsv files created by FIMO
       echo "Cleaning empty FIMO .tsv files..."
