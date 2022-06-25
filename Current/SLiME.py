@@ -228,7 +228,7 @@ elif clv_query:
 else:
     df_clv_filtered = df_clv
 
-st.dataframe(df_clv_filtered.iloc[ :, :17])
+st.dataframe(df_clv_filtered.iloc[ :, :20])
 
 st.download_button(
   label="Download as CSV",
