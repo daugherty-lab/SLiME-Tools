@@ -5,7 +5,7 @@ Short Linear Motif Evolution Tools
 1. Automate testing for all related bash and python code.
 
 # Two approaches to use this tool:
-1. Google Colaboratory (Instructions included within this resource)
+1. [Google Colaboratory](https://colab.research.google.com/drive/1q6UIrzrNZEaI6Wyy7jOMt6M8WyKJ0YJv?usp=sharing) (Instructions included within this resource)
 2. Cromwell->WDL pipeline for user-friendly control (Discontinued support)
 
 After obtaining the .csv output from SLiME.ipynb
